@@ -20,3 +20,6 @@
 13. 断电续接训练
 14. 修正 Transformer 实现，增加各个 mask 部分
 15. 由于 mask 已修改，所以需要修正 translate 部分。
+16. label smooth
+17. 增加可选项，可用 nn.Transformer 和 nn.MultiHeadAttention
+18. decoder-only 实现
