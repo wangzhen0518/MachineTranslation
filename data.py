@@ -56,13 +56,9 @@ class Batch:
         self.tgt_y = tgt[:, 1:]
 
         # src_key_padding_mask, tgt_key_padding_mask = src_key_padding_mask.to(device), tgt_key_padding_mask.to(device)
-        # self.src_key_padding_mask = transfer_mask((1 - src_key_padding_mask).type(torch.bool))
-        # self.tgt_key_padding_mask = transfer_mask((1 - tgt_key_padding_mask[:, :-1]).type(torch.bool))
-        # self.tgt_mask = transfer_mask(get_attn_subsequent_mask(self.tgt.size(1)))
-
-        self.src_key_padding_mask = (1 - src_key_padding_mask).type(torch.bool)
-        self.tgt_key_padding_mask = (1 - tgt_key_padding_mask[:, :-1]).type(torch.bool)
-        self.tgt_mask = get_attn_subsequent_mask(self.tgt.size(1))
+        self.src_key_padding_mask = transfer_mask((1 - src_key_padding_mask).type(torch.bool))
+        self.tgt_key_padding_mask = transfer_mask((1 - tgt_key_padding_mask[:, :-1]).type(torch.bool))
+        self.tgt_mask = transfer_mask(get_attn_subsequent_mask(self.tgt.size(1)))
 
         self.src_text = src_text
         self.tgt_text = tgt_text
