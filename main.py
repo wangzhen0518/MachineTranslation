@@ -6,7 +6,6 @@ import time
 from datetime import datetime
 from typing import List, Optional, Union
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 from datasets import load_dataset
@@ -57,6 +56,7 @@ def train_one_epoch(
     epoch: int = 0,
     num_epochs: int = 0,
     total_ntokens: int = 0,
+    device: Optional[torch.device] = None,
 ):
     epoch_loss, epoch_ntoken = 0.0, 0
     nbatch = len(dataloader)
@@ -64,16 +64,16 @@ def train_one_epoch(
     for i, batch in enumerate(dataloader):
         batch: Batch
         output = model.forward(
-            batch.src,
-            batch.tgt,
-            batch.tgt_mask,
-            batch.src_key_padding_mask,
-            batch.tgt_key_padding_mask,
-            batch.src_key_padding_mask,
+            batch.src.to(device),
+            batch.tgt.to(device),
+            batch.tgt_mask.to(device),
+            batch.src_key_padding_mask.to(device),
+            batch.tgt_key_padding_mask.to(device),
+            batch.src_key_padding_mask.to(device),
         )
 
         output = output.reshape(-1, output.size(-1))
-        tgt_y = batch.tgt_y.reshape(-1)
+        tgt_y = batch.tgt_y.reshape(-1).to(device)
         loss: Tensor = loss_fn(output, tgt_y)
 
         optimizer.zero_grad()
@@ -84,7 +84,7 @@ def train_one_epoch(
         epoch_loss += loss
         epoch_ntoken += batch.ntoken
 
-        if batch % 30 == 0:
+        if i % 30 == 0:
             end = time.time()
             print(f"Epoch [{epoch:4d}/{num_epochs-1:4d}] | Batch [{i:4d}/{nbatch-1:4d}] | Loss {loss:.6f} | NToken {epoch_ntoken+total_ntokens} | Time {end-start:.2f}s")
             writer.add_scalar("training loss", loss, epoch_ntoken + total_ntokens)
@@ -111,9 +111,9 @@ def train(
         batch_size=batch_size,
         collate_fn=data_collator.collate,
         shuffle=True,
-        # num_workers=4,
-        # prefetch_factor=2,
-        # pin_memory=True,
+        num_workers=4,
+        prefetch_factor=2,
+        pin_memory=True,
     )
     optimizer = optim.AdamW(model.parameters(), lr=lr)
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
@@ -140,6 +140,7 @@ def train(
             epoch,
             num_epochs,
             total_ntoken,
+            device,
         )
 
         total_ntoken += ntoken
@@ -259,7 +260,7 @@ def main():
     if not has_task:
         exit(0)
 
-    device = torch.device("cpu")
+    device = torch.device(args.device)
 
     embed_dim = 128
     ff_dim = 512
@@ -283,7 +284,7 @@ def main():
 
     if args.train:
         lr = 3e-4
-        batch_size = 12
+        batch_size = 10
         num_epochs = 1000
 
         loss_list, ntoken_list = train(
