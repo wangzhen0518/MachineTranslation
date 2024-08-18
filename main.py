@@ -44,6 +44,7 @@ def get_number_length(n: int) -> int:
 def get_tokenizer(name: str = "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"):
     tokenizer = AutoTokenizer.from_pretrained(name)
     tokenizer.add_special_tokens({"pad_token": "<|pad|>"})
+    tokenizer.padding_side = "right"
     return tokenizer
 
 
