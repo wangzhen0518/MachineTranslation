@@ -15,12 +15,25 @@ def clean_data(s: str) -> str:
     return s.replace(" ", "").strip()
 
 
+def transfer_mask(mask: Tensor) -> Tensor:
+    """将 bool mask 转换为 float mask"""
+    match mask.dtype:
+        case torch.bool:
+            mask = torch.zeros_like(mask, dtype=torch.float, device=mask.device).masked_fill_(mask, -1e8)
+        case torch.float:
+            pass
+        case _:
+            raise TypeError(f"mask.dtype must be float or bool, but now is {mask.dtype}")
+    return mask
+
+
 @dataclass
 class Batch:
     src: Tensor
     tgt: Tensor
     tgt_y: Tensor
-    src_mask: Tensor
+    src_key_padding_mask: Tensor
+    tgt_key_padding_mask: Tensor
     tgt_mask: Tensor
     src_text: str
     tgt_text: str
@@ -31,8 +44,8 @@ class Batch:
         self,
         src: Tensor,
         tgt: Tensor,
-        src_mask: Tensor,
-        tgt_mask: Tensor,
+        src_key_padding_mask: Tensor,
+        tgt_key_padding_mask: Tensor,
         src_text: str,
         tgt_text: str,
         device: Optional[torch.device],
@@ -42,16 +55,16 @@ class Batch:
         self.tgt = tgt[:, :-1]
         self.tgt_y = tgt[:, 1:]
 
-        src_mask, tgt_mask = src_mask.to(device), tgt_mask.to(device)
-        self.src_mask = (1 - src_mask).type(torch.bool).unsqueeze_(1)
-        subsequent_mask = get_attn_subsequent_mask(self.tgt.size(1), device=device)
-        self.tgt_mask = (1 - tgt_mask[:, :-1]).type(torch.bool).unsqueeze_(1) | subsequent_mask
+        src_key_padding_mask, tgt_key_padding_mask = src_key_padding_mask.to(device), tgt_key_padding_mask.to(device)
+        self.src_key_padding_mask = transfer_mask((1 - src_key_padding_mask).type(torch.bool))
+        self.tgt_key_padding_mask = transfer_mask((1 - tgt_key_padding_mask[:, :-1]).type(torch.bool))
+        self.tgt_mask = transfer_mask(get_attn_subsequent_mask(self.tgt.size(1), device=device))
 
         self.src_text = src_text
         self.tgt_text = tgt_text
 
         self.device = device
-        self.ntoken = tgt_mask.sum().item()
+        self.ntoken = tgt_key_padding_mask.sum().item()
 
 
 class DataCollator:
@@ -72,10 +85,10 @@ class DataCollator:
         src = self.tokenizer(src_text, padding=True, truncation=True, add_special_tokens=False, return_tensors="pt")
         tgt = self.tokenizer(tgt_text, padding=True, truncation=True, add_special_tokens=False, return_tensors="pt")
 
-        src, src_mask = src["input_ids"], src["attention_mask"]
-        tgt, tgt_mask = tgt["input_ids"], tgt["attention_mask"]
+        src, src_key_padding_mask = src["input_ids"], src["attention_mask"]
+        tgt, tgt_key_padding_mask = tgt["input_ids"], tgt["attention_mask"]
 
-        return Batch(src, tgt, src_mask, tgt_mask, src_text, tgt_text, self.device)
+        return Batch(src, tgt, src_key_padding_mask, tgt_key_padding_mask, src_text, tgt_text, self.device)
 
 
 def save_state(epoch: int, model: nn.Module, optimizer: optim.Optimizer, loss: float, ckpt_pth: str, writer: SummaryWriter):

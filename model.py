@@ -215,6 +215,9 @@ class Transformer(nn.Module):
         return mask
 
 
+# from typing import BinaryIO
+
+
 class TransformerModel(nn.Module):
     def __init__(
         self,
@@ -230,27 +233,53 @@ class TransformerModel(nn.Module):
         self.embed_dim = embed_dim
         self.nhead = nhead
         self.tgt_mask: Tensor = None
-        self.transformer = Transformer(embed_dim, nhead, num_encoder_layers, num_decoder_layers, ff_dim, dropout)
-        # self.transformer = nn.Transformer(
-        #     embed_dim,
-        #     nhead,
-        #     num_encoder_layers,
-        #     num_decoder_layers,
-        #     ff_dim,
-        #     dropout,
-        #     batch_first=True,
-        # )
+        # self.transformer = Transformer(embed_dim, nhead, num_encoder_layers, num_decoder_layers, ff_dim, dropout)
+        self.transformer = nn.Transformer(
+            embed_dim,
+            nhead,
+            num_encoder_layers,
+            num_decoder_layers,
+            ff_dim,
+            dropout,
+            batch_first=True,
+        )
         self.pos_encoder = PositionalEncoding(vocab_size, embed_dim, dropout)
         self.linear = nn.Linear(embed_dim, vocab_size)
 
-    def forward(self, src: Tensor, tgt: Tensor, src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
+    def forward(
+        self,
+        src: Tensor,
+        tgt: Tensor,
+        tgt_mask: Tensor,
+        src_key_padding_mask: Optional[Tensor] = None,
+        tgt_key_padding_mask: Optional[Tensor] = None,
+        memory_key_padding_mask: Optional[Tensor] = None,
+    ) -> Tensor:
         src = self.pos_encoder(src)
         tgt = self.pos_encoder(tgt)
-        # memory_mask = expand_mask(src_mask, self.nhead, tgt_mask.size(-1))
-        memory_mask = None
-        # src_mask = expand_mask(src_mask, self.nhead)
-        # tgt_mask = expand_mask(tgt_mask, self.nhead)
-        output = self.transformer.forward(src, tgt, src_mask, tgt_mask)
+
+        if tgt_mask.size(0) == 1:
+            bs = tgt.size(0)
+            tgt_mask = tgt_mask.expand(bs * self.nhead, -1, -1)
+        # bs, len_t = tgt.size(0), tgt.size(1)
+        # tgt_mask = (
+        #     self.transformer.generate_square_subsequent_mask(len_t, tgt.device)
+        #     .unsqueeze_(0)
+        #     .expand(
+        #         bs * self.nhead,
+        #         len_t,
+        #         len_t,
+        #     )
+        # )
+        output = self.transformer.forward(
+            src,
+            tgt,
+            tgt_mask=tgt_mask,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            memory_key_padding_mask=memory_key_padding_mask,
+            tgt_is_causal=True,
+        )
         output = self.linear(output)
         return output
 

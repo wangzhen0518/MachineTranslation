@@ -63,7 +63,14 @@ def train_one_epoch(
     start = time.time()
     for i, batch in enumerate(dataloader):
         batch: Batch
-        output = model.forward(batch.src, batch.tgt, batch.src_mask, batch.tgt_mask)
+        output = model.forward(
+            batch.src,
+            batch.tgt,
+            batch.tgt_mask,
+            batch.src_key_padding_mask,
+            batch.tgt_key_padding_mask,
+            batch.src_key_padding_mask,
+        )
 
         output = output.reshape(-1, output.size(-1))
         tgt_y = batch.tgt_y.reshape(-1)
@@ -98,7 +105,6 @@ def train(
     device: Optional[torch.device] = None,
 ):
     dataset = load_dataset("csv", data_files=dataset_file, split="train")
-    dataset = dataset["train"]
     data_collator = DataCollator(tokenizer, device)
     dataloader = DataLoader(
         dataset,
@@ -253,7 +259,7 @@ def main():
     if not has_task:
         exit(0)
 
-    device = torch.device(args.device)
+    device = torch.device("cpu")
 
     embed_dim = 128
     ff_dim = 512
@@ -291,9 +297,6 @@ def main():
             args.final_model,
             device,
         )
-
-        plt.plot(ntoken_list, loss_list)
-        plt.savefig("loss.png")
 
     ckpt_final = os.path.join(args.log, args.final_model)
     if os.path.exists(ckpt_final):
