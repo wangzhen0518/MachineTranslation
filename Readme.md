@@ -17,3 +17,6 @@
     1.  如何让 tokenizer 在句尾增加 padding
     2.  https://github.com/pytorch/pytorch/issues/41508, 不填充 float('-inf'), 改为填充一个很小的负数，如 -1e9
     3.  ~~传入 float mask 而不是 bool mask，这样 pytorch 不对 mask 进行修改，使用的是 float mask 原始值，目前使用的是 `-1e8`，就不会出现 nan 了~~
+13. 断电续接训练
+14. 修正 Transformer 实现，增加各个 mask 部分
+15. 由于 mask 已修改，所以需要修正 translate 部分。
