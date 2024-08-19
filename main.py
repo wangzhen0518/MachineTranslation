@@ -150,10 +150,11 @@ def train(
         end = time.time()
         print(f"\nEpoch [{epoch:4d}/{num_epochs-1:4d}] | Loss {loss:.6f} | NToken {total_ntoken} | Time {end-start:.2f}s\n\n")
 
-        ckpt_pth = os.path.join(writer_dir, f"model_epoch_{epoch}.pth")
-        save_state(epoch, model, optimizer, loss, ckpt_pth, writer)
+        if epoch % 100 == 0:
+            ckpt_pth = os.path.join(writer_dir, f"model_epoch_{epoch}.pth")
+            save_state(epoch, model, optimizer, loss, ckpt_pth, writer)
 
-    shutil.copyfile(ckpt_pth, ckpt_final)
+    save_state(epoch, model, optimizer, loss, ckpt_final, writer)
     return loss_list, ntoken_list
 
 
