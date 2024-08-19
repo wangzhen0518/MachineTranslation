@@ -23,3 +23,5 @@
 16. label smooth
 17. 增加可选项，可用 nn.Transformer 和 nn.MultiHeadAttention
 18. decoder-only 实现
+19. 适配 nn.Transformer 格式的 greedy sample
+20. beam search sample
